@@ -3,6 +3,12 @@ use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::Path;
 
+mod color_validator;
+mod eye_color_validator;
+mod height_validator;
+mod id_validator;
+mod nr_validator;
+
 fn read_lines(filename: &Path) -> io::Result<io::Lines<io::BufReader<File>>> {
 	let file = File::open(filename)?;
 	Ok(io::BufReader::new(file).lines())
@@ -11,6 +17,7 @@ fn read_lines(filename: &Path) -> io::Result<io::Lines<io::BufReader<File>>> {
 mod day1;
 mod day2;
 mod day3;
+mod day4;
 
 type Solution = fn(Vec<String>) -> (i64, i64);
 fn main() {
@@ -29,6 +36,7 @@ fn main() {
 	solutions.push(day1::solve);
 solutions.push(day2::solve);
 solutions.push(day3::solve);
+solutions.push(day4::solve);
 
 	let (a1, a2) = solutions[day - 1](
 		read_lines(path)
