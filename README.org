@@ -1,0 +1,208 @@
+#+title: Advent-of-code
+#+subtitle: 2020
+
+* =main.rs=
+  Om niet te veel opnieuw te schrijven zorg ik voor een main die
+  redelijk generiek is. Zo hoef ik enkel in een nieuw bestand een
+  publieke =solve(lines: Vec<String>)= te schrijven. Via scripts vul
+  ik de rest aan. 
+
+** Boilerplate
+
+   #+begin_src rust :tangle src/main.rs
+     use std::env;
+     use std::fs::File;
+     use std::io::{self, BufRead};
+     use std::path::Path;
+
+     fn read_lines(filename: &Path) -> io::Result<io::Lines<io::BufReader<File>>> {
+	     let file = File::open(filename)?;
+	     Ok(io::BufReader::new(file).lines())
+     }
+   #+end_src
+
+** Main functie
+   
+   #+begin_src rust :tangle src/main.rs
+     // <modules>
+     type Solution = fn(Vec<String>) -> (i64, i64);
+     fn main() {
+	     let args: Vec<String> = env::args().collect();
+	     if args.len() != 2 {
+		     println!("Geef de dag!");
+		     return;
+	     }
+	     let day = args[1].parse::<usize>().unwrap();
+	     if day < 1 {
+		     println!("Grapjas");
+	     }
+	     let p: String = format!("input/{}", day);
+	     let path = Path::new(&p);
+	     let mut solutions: Vec<Solution> = Vec::new();
+	     // <push>
+	     let (a1, a2) = solutions[day - 1](
+		     read_lines(path)
+			     .expect(
+				     "geen lijnen",
+			     )
+			     .collect::<Result<Vec<String>, _>>()
+			     .unwrap(),
+	     );
+	     println!("Eerste: {}\nTweede: {}", a1, a2);
+     }
+   #+end_src
+   
+* Aanvullend script
+
+   Nu is er nog een script nodig die onder _modules_ en _push_ de
+   correcte modules en functies toevoegt zodat het programma kan
+   worden gecompileerd. =cargo build= zou dit script moeten uitvoeren! 
+
+   #+begin_src bash :tangle inject.sh :results verbatim
+     for file in src/day*.rs; do
+	 file=${file#src/}
+	 DAYS=$DAYS:${file%.rs}';';
+     done
+     shopt -s extglob
+     MODS=$(echo $DAYS | sed  's/:/mod /g' | sed 's/;/;\\n/g')
+     SOLS=$(echo $DAYS | sed 's/:/solutions.push(/g' | sed 's/;/::solve);\\n/g')
+     sed --in-place "s|// <modules>|${MODS}|"  src/main.rs
+     sed --in-place "s|// <push>|${SOLS}|" src/main.rs
+   #+end_src
+
+   #+RESULTS:
+
+
+   Als laatste stap moet er een =build.rs= geschreven worden die het
+   script zal aanroepen:
+
+   #+begin_src rust :tangle build.rs
+      use std::process::Command;
+
+      fn main() {
+	      Command::new("bash").args(&["./inject.sh"]).status().unwrap();
+      }
+   #+end_src
+* Day 1
+
+  #+begin_src rust :tangle src/day1.rs
+    use std::collections::HashMap;
+
+    fn get_numbers(list: &Vec<i64>, number: i64) -> Result<(i64, i64), String> {
+	    let mut map = HashMap::new();
+	    for n in list {
+		    let diff: i64 = number - n;
+		    if diff > 0 {
+			    if map.contains_key(&diff) {
+				    return Ok((*n, diff));
+			    }
+			    map.insert(n, diff);
+		    }
+	    }
+	    Err("Geen paar".to_string())
+    }
+
+    fn get_trio(list: &Vec<i64>, number: i64) -> Result<(i64, i64, i64), String> {
+	    for n in list {
+		    if let Ok((x, y)) = get_numbers(&list, number - n) {
+			    return Ok((*n, x, y));
+		    }
+	    }
+	    Err("Geen trio".to_string())
+    }
+
+    pub fn solve(lines: Vec<String>) -> (i64, i64) {
+	    let numbers: Vec<i64> =
+		    lines.iter().map(|s| s.parse::<i64>().unwrap()).collect();
+	    let res1 = get_numbers(&numbers, 2020).unwrap();
+	    let res2 = get_trio(&numbers, 2020).unwrap();
+	    (res1.0 * res1.1, res2.0 * res2.1 * res2.2)
+    }
+  #+end_src
+
+* Day 2
+  #+begin_src rust :tangle src/day2.rs
+    use regex::Regex;
+
+    #[derive(Default)]
+    struct Foo {
+	    min: i8,
+	    max: i8,
+	    c: char,
+	    password: String,
+    }
+
+    fn is_valid_password1(f: &Foo) -> bool {
+	    let freq = f.password.chars().filter(|c| *c == f.c).count() as i8;
+	    return f.min <= freq && freq <= f.max;
+    }
+
+    fn is_valid_password2(f: &Foo) -> bool {
+	    let bool1 = f.password.as_bytes()[(f.min - 1) as usize] as char == f.c;
+	    let bool2 = f.password.as_bytes()[(f.max - 1) as usize] as char == f.c;
+	    bool1 ^ bool2
+    }
+
+    // string is van de vorm :
+    // i8-i8 char: String
+    fn parse_line(re: &Regex, line: String) -> Option<Foo> {
+	    let mut res: Foo = Default::default();
+	    let caps = re.captures(&line)?;
+	    res.min = caps.get(1)?.as_str().parse::<i8>().unwrap();
+	    res.max = caps.get(2)?.as_str().parse::<i8>().unwrap();
+	    res.c = caps.get(3)?.as_str().parse::<char>().unwrap();
+	    res.password = String::from(caps.get(4)?.as_str());
+	    Some(res)
+    }
+
+    pub fn solve(lines: Vec<String>) -> (i64, i64) {
+	    let re = Regex::new(r"^(\d+)-(\d+) (\w): (\w+)$").unwrap();
+
+	    let mut aantal1 = 0;
+	    let mut aantal2 = 0;
+	    lines
+		    .iter()
+		    .map(|line| parse_line(&re, line.to_string()))
+		    .for_each(|foo| {
+			    if let Some(f) = foo {
+				    if is_valid_password1(&f) {
+					    aantal1 += 1;
+				    }
+				    if is_valid_password2(&f) {
+					    aantal2 += 1;
+				    }
+			    }
+		    });
+	    (aantal1, aantal2)
+    }
+  #+end_src
+* Day 3
+
+  #+begin_src rust :tangle src/day3.rs
+    fn count_trees(map: &Vec<Vec<char>>, (a, b): (usize, usize)) -> i64 {
+	    let mut x: usize = a;
+	    let mut y: usize = b;
+	    let mut res = 0;
+	    while y < map.len() {
+		    if map[y][x] == '#' {
+			    res += 1;
+		    }
+		    x = (x + a) % (map[0].len());
+		    y += b;
+	    }
+	    res
+    }
+
+    pub fn solve(lines: Vec<String>) -> (i64, i64) {
+		    let slopes = vec![(1, 1), (3, 1), (5, 1), (7, 1), (1, 2)];
+		    let mut res: i64 = 1;
+		    let vec: Vec<Vec<char>> = lines
+			    .into_iter()
+			    .map(|line| line.chars().collect())
+			    .collect();
+		    slopes
+			    .iter()
+			    .for_each(|slope| res *= count_trees(&vec, *slope));
+		    (count_trees(&vec, slopes[1]), res)
+    }
+  #+end_src
