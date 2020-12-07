@@ -18,7 +18,7 @@ pub fn solve(lines: Vec<String>) -> (i64, i64) {
 		} else {
 			line.chars().for_each(|c| {
 				// beetje stom, maar kort geschreven :)
-				*questions_per_group.entry(c).or_insert(0) += 1;
+				questions_per_group.entry(c).and_modify(|i| *i+=1).or_insert(1);
 			});
 			group_len += 1;
 		}

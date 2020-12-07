@@ -20,6 +20,7 @@ mod day3;
 mod day4;
 mod day5;
 mod day6;
+mod day7;
 
 type Solution = fn(Vec<String>) -> (i64, i64);
 fn main() {
@@ -41,6 +42,7 @@ solutions.push(day3::solve);
 solutions.push(day4::solve);
 solutions.push(day5::solve);
 solutions.push(day6::solve);
+solutions.push(day7::solve);
 
 	let (a1, a2) = solutions[day - 1](
 		read_lines(path)
